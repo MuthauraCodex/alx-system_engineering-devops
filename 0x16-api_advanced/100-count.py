@@ -1,53 +1,59 @@
 #!/usr/bin/python3
-"""Contains the count_words function to count words in all hot posts"""
-import json
+"""
+This script counts the number of occurrences of a list of words in the titles
+of the top 100 hot posts on a given subreddit using the Reddit API.
+"""
 import requests
 
 
-def count_words(subreddit, word_list, after="", count=[]):
-    """count all words"""
+def count_words(subreddit, word_list):
+    """
+    This function counts the number of words in the titles of
+    the top 100 hot posts and prints the counts in descending order.
 
-    if after == "":
-        count = [0] * len(word_list)
+    :param subreddit: The subreddit to search.
+    :param word_list: The list of words to search for.
+    :return: None
+    """
+    # Initialize a dictionary to hold the count of occurrences of each word
+    word_dict = {}
 
-    url = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
-    request = requests.get(url,
-                           params={'after': after},
-                           allow_redirects=False,
-                           headers={'user-agent': 'bhalut'})
+    # Base URL for the Reddit API
+    base_url = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
 
-    if request.status_code == 200:
-        data = request.json()
+    # Set headers to identify the script as a user agent
+    headers = {"User-Agent": "Mozilla/5.0"}
 
-        for topic in (data['data']['children']):
-            for word in topic['data']['title'].split():
-                for i in range(len(word_list)):
-                    if word_list[i].lower() == word.lower():
-                        count[i] += 1
+    # Set parameters for the API request
+    params = {"limit": 100}
 
-        after = data['data']['after']
-        if after is None:
-            save = []
-            for i in range(len(word_list)):
-                for j in range(i + 1, len(word_list)):
-                    if word_list[i].lower() == word_list[j].lower():
-                        save.append(j)
-                        count[i] += count[j]
+    # Make the initial request to the Reddit API
+    response = requests.get(base_url, headers=headers, params=params)
 
-            for i in range(len(word_list)):
-                for j in range(i, len(word_list)):
-                    if (count[j] > count[i] or
-                            (word_list[i] > word_list[j] and
-                             count[j] == count[i])):
-                        aux = count[i]
-                        count[i] = count[j]
-                        count[j] = aux
-                        aux = word_list[i]
-                        word_list[i] = word_list[j]
-                        word_list[j] = aux
+    # Check if the response was successful
+    if response.status_code == 200:
+        # Parse the response as JSON
+        response_data = response.json()
 
-            for i in range(len(word_list)):
-                if (count[i] > 0) and i not in save:
-                    print("{}: {}".format(word_list[i].lower(), count[i]))
-        else:
-            count_words(subreddit, word_list, after, count)
+        # Iterate over the posts in the response
+        for post in response_data["data"]["children"]:
+            # Get the title of the post
+            title = post["data"]["title"]
+
+            # Iterate over the words in the word list
+            for word in word_list:
+                # Check if the word appears in the title
+                if word in title.lower():
+                    # If the word isn't in the dictionary,add with a count of 1
+                    if word not in word_dict:
+                        word_dict[word] = 1
+                    # If the word is in the dictionary,increment its count by 1
+                    else:
+                        word_dict[word] += 1
+
+        # Sort the dictionary by the count in descending order
+        sorted_words = sorted(word_dict.items(), key=lambda x: (-x[1], x[0]))
+
+        # Print the results
+        for word, count in sorted_words:
+            print("{}: {}".format(word, count))
